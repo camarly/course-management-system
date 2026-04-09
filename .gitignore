@@ -1,0 +1,59 @@
+# ── Claude ──────────────────────────────────────────────────────────────────
+.claude/
+CLAUDE.md
+memory/
+*.claude
+.claudeignore
+
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+*.pyo
+
+# ── Environment ─────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Node / Frontend ─────────────────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.local
+
+# ── Docker ──────────────────────────────────────────────────────────────────
+*.log
+
+# ── IDE ─────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*.iml
+
+# ── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Uploads / secrets ───────────────────────────────────────────────────────
+uploads/
+*.pem
+*.key
+*.cert

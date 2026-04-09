@@ -1,0 +1,24 @@
+{
+  "info": {
+    "name": "LMS API — Course Management System",
+    "_postman_id": "00000000-0000-0000-0000-000000000000",
+    "description": "COMP3161 LMS REST API collection. Covers all endpoints for auth, courses, forums, assignments, and reports.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    { "name": "Auth",        "item": [] },
+    { "name": "Users",       "item": [] },
+    { "name": "Courses",     "item": [] },
+    { "name": "Enrollment",  "item": [] },
+    { "name": "Calendar",    "item": [] },
+    { "name": "Forums",      "item": [] },
+    { "name": "Threads",     "item": [] },
+    { "name": "Replies",     "item": [] },
+    { "name": "Content",     "item": [] },
+    { "name": "Assignments", "item": [] },
+    { "name": "Submissions", "item": [] },
+    { "name": "Grades",      "item": [] },
+    { "name": "Reports",     "item": [] }
+  ],
+  "variable": []
+}

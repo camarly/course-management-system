@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - 'camarly/**'
+      - 'carl/**'
+      - 'tramonique/**'
+      - 'tamarica/**'
+      - 'shared/**'
+  pull_request:
+    branches:
+      - develop
+      - main
+
+jobs:
+  backend:
+    name: Backend — lint & test
+    runs-on: ubuntu-latest
+
+    services:
+      db:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: testpass
+          MYSQL_DATABASE: lms_test
+          MYSQL_USER: lms_user
+          MYSQL_PASSWORD: testpass
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -ptestpass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        working-directory: ./backend
+        run: pip install -r requirements.txt
+
+      - name: Run migrations
+        working-directory: ./backend
+        env:
+          MYSQL_PWD: testpass
+        run: |
+          for f in app/db/migrations/*.sql; do
+            mysql -h 127.0.0.1 -u lms_user -ptestpass lms_test < "$f"
+          done
+
+      - name: Run tests
+        working-directory: ./backend
+        env:
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_NAME: lms_test
+          DB_USER: lms_user
+          DB_PASSWORD: testpass
+          REDIS_URL: redis://localhost:6379/0
+          CELERY_BROKER_URL: redis://localhost:6379/1
+          CELERY_RESULT_BACKEND: redis://localhost:6379/2
+          SECRET_KEY: ci-test-secret-key
+          JWT_SECRET: ci-test-jwt-secret
+          JWT_EXPIRY_HOURS: 24
+          GOOGLE_CLIENT_ID: placeholder
+          GOOGLE_CLIENT_SECRET: placeholder
+          GOOGLE_REDIRECT_URI: http://localhost/api/auth/google/callback
+          FLASK_ENV: testing
+          FLASK_DEBUG: 0
+        run: pytest tests/ -v --tb=short
+
+  frontend:
+    name: Frontend — build check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./frontend
+        run: npm install
+
+      - name: Build
+        working-directory: ./frontend
+        run: npm run build

@@ -1,0 +1,60 @@
+name: Deploy
+
+# Triggers on merge to main after the CI workflow passes.
+# Deployment target is TBD — the team is evaluating Azure, Heroku, and other platforms.
+# Replace the placeholder steps below once a hosting provider is chosen.
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy to <HOSTING_PROVIDER>
+    runs-on: ubuntu-latest
+
+    # Uncomment and configure the needs field once CI workflow name is confirmed.
+    # needs: [backend, frontend]
+
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # ── Build frontend ────────────────────────────────────────────────────
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm install
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      # ── Deploy — PLACEHOLDER ─────────────────────────────────────────────
+      # TODO: Replace this step with provider-specific deployment once decided.
+      #
+      # Azure App Service example:
+      #   uses: azure/webapps-deploy@v3
+      #   with:
+      #     app-name: ${{ secrets.AZURE_APP_NAME }}
+      #     publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
+      #
+      # Heroku example:
+      #   uses: akhileshns/heroku-deploy@v3
+      #   with:
+      #     heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+      #     heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+      #     heroku_email: ${{ secrets.HEROKU_EMAIL }}
+      #
+      # Railway / Render / Fly.io also supported — see their GitHub Actions docs.
+
+      - name: Deploy (placeholder)
+        run: echo "TODO — configure deployment provider and replace this step"
