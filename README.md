@@ -6,8 +6,7 @@ A full-stack Learning Management System built with Flask, MySQL 8, Redis, Celery
 
 ## Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) ≥ 4.x
-- [Docker Compose](https://docs.docker.com/compose/) (bundled with Docker Desktop)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) >= 4.x (includes Docker Compose)
 - Git
 
 ---
@@ -17,7 +16,7 @@ A full-stack Learning Management System built with Flask, MySQL 8, Redis, Celery
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/<your-org>/course-management-system.git
+git clone <repo-url>
 cd course-management-system
 ```
 
@@ -27,7 +26,18 @@ cd course-management-system
 cp .env.example .env
 ```
 
-Open `.env` and fill in every value — see the comments in `.env.example` for guidance.  
+Open `.env` and fill in every value — see the comments in `.env.example` for guidance.
+
+Required secrets to generate:
+
+```bash
+# SECRET_KEY
+python -c "import secrets; print(secrets.token_hex(32))"
+
+# JWT_SECRET (use a different value from SECRET_KEY)
+python -c "import secrets; print(secrets.token_hex(32))"
+```
+
 **Do not commit your `.env` file.**
 
 ### 3. Build and start all services
@@ -38,33 +48,61 @@ docker compose up --build
 
 This starts:
 
-| Service | URL |
+| Service | URL / Port |
 |---|---|
-| React frontend | http://localhost |
-| Flask API | http://localhost/api |
+| React frontend | http://localhost:5173 |
+| Flask API (via nginx) | http://localhost/api |
 | MySQL 8 | localhost:3306 |
-| Redis | localhost:6379 (internal) |
-| Celery worker | (background worker, no port) |
+| Redis | internal only (6379) |
+| Celery worker | background, no port |
 
-### 4. Run database migrations
+### 4. Database migrations
 
-On first start the MySQL container automatically runs every file in  
-`backend/app/db/migrations/` in numbered order.
+On **first start**, MySQL automatically runs every `.sql` file in `backend/app/db/migrations/` (mounted to `/docker-entrypoint-initdb.d`). This only happens when the `mysql_data` volume is empty.
 
-To run them manually against a running container:
+To re-run migrations on an existing database (e.g. after adding a new migration):
 
 ```bash
-docker compose exec db mysql -u"$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" \
-  < backend/app/db/migrations/001_create_users.sql
+docker compose exec -T db mysql -u"$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" \
+  < backend/app/db/migrations/<filename>.sql
 ```
 
-Repeat for each numbered migration file.
+To re-run all migrations from scratch:
+
+```bash
+docker compose down -v        # deletes the MySQL volume
+docker compose up --build -d  # recreates everything
+```
 
 ### 5. Verify the API is running
 
 ```bash
 curl http://localhost/api/health
 # Expected: {"status": "ok"}
+```
+
+---
+
+## Authentication (JWT)
+
+The API uses JSON Web Tokens for authentication. See `docs/CAMARLY_THOMAS.md` for full JWT setup and usage instructions.
+
+Quick reference:
+
+```bash
+# Register
+curl -X POST http://localhost/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"username": "testuser", "email": "test@example.com", "password": "secret123", "role": "student"}'
+
+# Login — returns a JWT in the response
+curl -X POST http://localhost/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username": "testuser", "password": "secret123"}'
+
+# Use the token on protected routes
+curl http://localhost/api/users/me \
+  -H "Authorization: Bearer <token>"
 ```
 
 ---
@@ -100,14 +138,14 @@ See the individual setup guides in `docs/` for stream-specific instructions.
 
 ---
 
-## Project structure overview
+## Project structure
 
 ```
 course-management-system/
 ├── backend/        Flask API + Celery worker
 ├── frontend/       React (Vite) SPA
 ├── nginx/          Reverse proxy config
-├── postman/        API collection and environment
+├── postman/        API environment template (collection exported from Postman)
 ├── docs/           Team guides and architecture docs
 └── .github/        CI/CD workflows
 ```
