@@ -1,8 +1,25 @@
-/**
- * Root application component.
- * Defines the top-level route tree using react-router-dom.
- * Wraps the route tree with AuthContext so every child can access the current user.
- *
- * Public routes:  /login, /register
- * Protected routes (require JWT): everything else, guarded by <ProtectedRoute>
- */
+import { Routes, Route, Navigate } from 'react-router-dom'
+import LoginPage from './pages/LoginPage.jsx'
+import DashboardPage from './pages/DashboardPage.jsx'
+
+function RequireAuth({ children }) {
+  const token = localStorage.getItem('lms_token')
+  return token ? children : <Navigate to="/login" replace />
+}
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/dashboard"
+        element={
+          <RequireAuth>
+            <DashboardPage />
+          </RequireAuth>
+        }
+      />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  )
+}

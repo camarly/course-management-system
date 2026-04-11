@@ -1,60 +1,17 @@
 name: Deploy
 
-# Triggers on merge to main after the CI workflow passes.
-# Deployment target is TBD — the team is evaluating Azure, Heroku, and other platforms.
-# Replace the placeholder steps below once a hosting provider is chosen.
+# Deployment is disabled until a hosting provider is chosen.
+# This workflow only runs when triggered manually from the Actions tab.
+# Re-enable automatic deploys by adding a `push` trigger on `main` once the
+# provider-specific steps below are filled in.
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
   deploy:
-    name: Deploy to <HOSTING_PROVIDER>
+    name: Deploy (disabled placeholder)
     runs-on: ubuntu-latest
-
-    # Uncomment and configure the needs field once CI workflow name is confirmed.
-    # needs: [backend, frontend]
-
-    environment: production
-
     steps:
-      - uses: actions/checkout@v4
-
-      # ── Build frontend ────────────────────────────────────────────────────
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        working-directory: ./frontend
-        run: npm install
-
-      - name: Build frontend
-        working-directory: ./frontend
-        run: npm run build
-
-      # ── Deploy — PLACEHOLDER ─────────────────────────────────────────────
-      # TODO: Replace this step with provider-specific deployment once decided.
-      #
-      # Azure App Service example:
-      #   uses: azure/webapps-deploy@v3
-      #   with:
-      #     app-name: ${{ secrets.AZURE_APP_NAME }}
-      #     publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE }}
-      #
-      # Heroku example:
-      #   uses: akhileshns/heroku-deploy@v3
-      #   with:
-      #     heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-      #     heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
-      #     heroku_email: ${{ secrets.HEROKU_EMAIL }}
-      #
-      # Railway / Render / Fly.io also supported — see their GitHub Actions docs.
-
-      - name: Deploy (placeholder)
-        run: echo "TODO — configure deployment provider and replace this step"
+      - name: Notice
+        run: echo "Deployment provider not yet chosen. This workflow is a placeholder — edit .github/workflows/deploy.yml when ready."

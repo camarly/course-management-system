@@ -1,13 +1,20 @@
 /**
- * Auth API module.
- *
- * Functions:
- *   register(username, password, role)  POST /api/auth/register
- *   login(username, password)           POST /api/auth/login
- *   googleLogin()                       GET  /api/auth/google/login  (redirect)
- *   adminCreateUser(payload)            POST /api/auth/admin/create-user
- *
- * Owner: Camarly Thomas
+ * Auth API module — JWT only, no Google OAuth.
  */
 
 import client from './client'
+
+export async function login(username, password) {
+  const { data } = await client.post('/auth/login', { username, password })
+  return data.data  // envelope: { data: { token, user }, message }
+}
+
+export async function register(username, email, password, role) {
+  const { data } = await client.post('/auth/register', { username, email, password, role })
+  return data.data
+}
+
+export async function me() {
+  const { data } = await client.get('/users/me')
+  return data.data
+}

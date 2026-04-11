@@ -5,6 +5,10 @@ memory/
 *.claude
 .claudeignore
 
+# ── Private docs (Camarly, local only — never push) ────────────────────────
+docs/CAMARLY_THOMAS.md
+docs/all_teammembers.md
+
 # ── Python ──────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]

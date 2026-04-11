@@ -1,5 +1,13 @@
-/**
- * Application entry point.
- * Mounts the React app into the #root div.
- * Wraps App with BrowserRouter for client-side routing.
- */
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { BrowserRouter } from 'react-router-dom'
+import App from './App.jsx'
+import './styles.css'
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>,
+)

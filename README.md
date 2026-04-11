@@ -2,11 +2,13 @@
 
 A full-stack Learning Management System built with Flask, MySQL 8, Redis, Celery, and React.
 
+Everything runs inside Docker. You do not need Python, Node, MySQL, or Redis installed locally — only Docker Desktop and Git.
+
 ---
 
 ## Prerequisites
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) >= 4.x (includes Docker Compose)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) 4.x or newer (includes Docker Compose)
 - Git
 
 ---
@@ -16,37 +18,25 @@ A full-stack Learning Management System built with Flask, MySQL 8, Redis, Celery
 ### 1. Clone the repository
 
 ```bash
-git clone <repo-url>
+git clone git@github.com:camarly/course-management-system.git
 cd course-management-system
 ```
 
-### 2. Configure environment variables
+### 2. Copy the environment file
 
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and fill in every value — see the comments in `.env.example` for guidance.
+No edits required — the defaults are wired for local development inside Docker.
 
-Required secrets to generate:
-
-```bash
-# SECRET_KEY
-python -c "import secrets; print(secrets.token_hex(32))"
-
-# JWT_SECRET (use a different value from SECRET_KEY)
-python -c "import secrets; print(secrets.token_hex(32))"
-```
-
-**Do not commit your `.env` file.**
-
-### 3. Build and start all services
+### 3. Bring the stack up
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
-This starts:
+This starts six services:
 
 | Service | URL / Port |
 |---|---|
@@ -55,39 +45,54 @@ This starts:
 | MySQL 8 | localhost:3306 |
 | Redis | internal only (6379) |
 | Celery worker | background, no port |
+| nginx reverse proxy | http://localhost |
 
-### 4. Database migrations
+On **first start**, MySQL automatically runs every `.sql` file in `backend/app/db/migrations/` — no manual migration step is needed.
 
-On **first start**, MySQL automatically runs every `.sql` file in `backend/app/db/migrations/` (mounted to `/docker-entrypoint-initdb.d`). This only happens when the `mysql_data` volume is empty.
-
-To re-run migrations on an existing database (e.g. after adding a new migration):
-
-```bash
-docker compose exec -T db mysql -u"$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" \
-  < backend/app/db/migrations/<filename>.sql
-```
-
-To re-run all migrations from scratch:
-
-```bash
-docker compose down -v        # deletes the MySQL volume
-docker compose up --build -d  # recreates everything
-```
-
-### 5. Verify the API is running
+### 4. Verify the API
 
 ```bash
 curl http://localhost/api/health
-# Expected: {"status": "ok"}
+# → {"status": "ok", "env": "development"}
 ```
+
+---
+
+## Running tests
+
+All tests run **inside the API container** — no Python venv, no `pip install`, nothing on your host:
+
+```bash
+docker compose exec api pytest tests/ -v
+```
+
+Run a specific file or class:
+
+```bash
+docker compose exec api pytest tests/test_courses.py -v
+docker compose exec api pytest tests/test_courses.py::TestCreateCourse -v
+```
+
+---
+
+## Everyday Docker commands
+
+| Action | Command |
+|---|---|
+| Start everything | `docker compose up -d` |
+| Tail API logs | `docker compose logs -f api` |
+| Tail Celery logs | `docker compose logs -f celery_worker` |
+| Restart API after code change | `docker compose restart api` |
+| MySQL shell | `docker compose exec db mysql -u"$DB_USER" -p"$DB_PASSWORD" lms_db` |
+| Redis shell | `docker compose exec redis redis-cli` |
+| Stop stack, keep data | `docker compose down` |
+| Stop stack, wipe DB volume | `docker compose down -v` |
 
 ---
 
 ## Authentication (JWT)
 
-The API uses JSON Web Tokens for authentication. See `docs/CAMARLY_THOMAS.md` for full JWT setup and usage instructions.
-
-Quick reference:
+The API uses JWT — no Google OAuth. See `docs/PROJECT_PLAN.md` for the full auth flow.
 
 ```bash
 # Register
@@ -95,46 +100,28 @@ curl -X POST http://localhost/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"username": "testuser", "email": "test@example.com", "password": "secret123", "role": "student"}'
 
-# Login — returns a JWT in the response
+# Login — returns a JWT
 curl -X POST http://localhost/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "testuser", "password": "secret123"}'
 
-# Use the token on protected routes
-curl http://localhost/api/users/me \
-  -H "Authorization: Bearer <token>"
-```
-
----
-
-## Stopping the stack
-
-```bash
-docker compose down          # stop containers, keep volumes
-docker compose down -v       # stop containers AND delete the MySQL volume
-```
-
----
-
-## Running tests
-
-```bash
-docker compose exec api pytest tests/ -v
+# Call a protected route
+curl http://localhost/api/users/me -H "Authorization: Bearer <token>"
 ```
 
 ---
 
 ## Development workflow
 
-Each team member works on their own feature branch and opens a pull request to `develop`.
+Each team member works on a small, incremental feature branch and opens a pull request to `develop`:
 
 ```bash
 git checkout develop
 git pull origin develop
-git checkout -b <your-name>/<feature>
+git checkout -b <your-name>/feature-<what-you-are-building>
 ```
 
-See the individual setup guides in `docs/` for stream-specific instructions.
+See `docs/TAMARICA_SHAW.md`, `docs/TRAMONIQUE_WELLINGTON.md`, and `docs/CARL_HERON.md` for each stream's step-by-step guide.
 
 ---
 
@@ -145,7 +132,7 @@ course-management-system/
 ├── backend/        Flask API + Celery worker
 ├── frontend/       React (Vite) SPA
 ├── nginx/          Reverse proxy config
-├── postman/        API environment template (collection exported from Postman)
+├── postman/        API environment template
 ├── docs/           Team guides and architecture docs
-└── .github/        CI/CD workflows
+└── .github/        CI workflows
 ```

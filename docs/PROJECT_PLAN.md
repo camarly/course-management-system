@@ -2,7 +2,7 @@
 ## Architecture & Project Plan
 
 > **Group Meeting Reference Document**
-> Last updated: 2026-04-08
+> Last updated: 2026-04-10
 
 ---
 
@@ -22,7 +22,7 @@
 | Layer | Technology |
 |---|---|
 | Backend | Python + Flask, raw SQL only (no ORM), MySQL 8 |
-| Auth | Google OAuth 2.0 + JWT (PyJWT) |
+| Auth | Username + password (bcrypt) + JWT (PyJWT) |
 | Cache + Task Broker | Redis |
 | Task Queue | Celery |
 | Frontend | React (Vite) |
@@ -44,7 +44,6 @@ graph TD
     MySQL["MySQL 8\n(:3306)"]
     Redis["Redis\n(:6379)"]
     Celery["Celery Worker"]
-    Google["Google OAuth 2.0\n(external)"]
 
     Browser -->|"HTTPS"| Nginx
     Nginx -->|"/api/*"| Flask
@@ -53,8 +52,6 @@ graph TD
     Flask -->|"cache GET / enqueue tasks"| Redis
     Celery -->|"dequeues tasks"| Redis
     Celery -->|"raw SQL writes"| MySQL
-    Flask -->|"OAuth redirect"| Google
-    Google -->|"auth code callback"| Flask
 ```
 
 ### Service Responsibilities
@@ -62,7 +59,7 @@ graph TD
 | Service | Role |
 |---|---|
 | **Nginx** | Terminates HTTP, routes `/api/*` to Flask, serves React static build |
-| **Flask API** | All business logic, raw SQL, JWT validation, OAuth flow |
+| **Flask API** | All business logic, raw SQL, JWT validation |
 | **MySQL 8** | Single source of truth for all persistent data |
 | **Redis** | Dual-purpose: Celery broker/result-backend + HTTP response cache |
 | **Celery Worker** | Async tasks — bulk seeding, grade recalculation, notifications |
@@ -78,23 +75,19 @@ graph TD
 sequenceDiagram
     participant C as Client
     participant F as Flask API
-    participant G as Google OAuth
     participant DB as MySQL
     participant R as Redis
 
-    C->>F: POST /api/auth/register (username, password, role)
+    C->>F: POST /api/auth/register (username, email, password, role)
+    F->>F: bcrypt hash password
     F->>DB: INSERT user
     F-->>C: 201 Created
 
-    C->>F: GET /api/auth/google/login
-    F-->>C: 302 redirect to Google consent screen
-    C->>G: User consents
-    G->>F: GET /api/auth/google/callback?code=...
-    F->>G: Exchange code for token
-    G-->>F: id_token (email, name)
-    F->>DB: UPSERT user by email
-    F->>F: Sign JWT (sub, role, exp)
-    F-->>C: { access_token }
+    C->>F: POST /api/auth/login (username, password)
+    F->>DB: SELECT user WHERE username = ?
+    DB-->>F: row with password_hash
+    F->>F: bcrypt.checkpw, then sign JWT (sub, role, exp)
+    F-->>C: 200 { token, user }
 
     C->>F: GET /api/courses (Authorization: Bearer token)
     F->>F: Decode + validate JWT
@@ -172,7 +165,7 @@ flowchart TD
 
 | Table | Description |
 |---|---|
-| `users` | All accounts (admin, lecturer, student) with hashed passwords and OAuth identifiers |
+| `users` | All accounts (admin, lecturer, student) with bcrypt password hashes |
 | `courses` | Course catalogue; each row references exactly one lecturer FK |
 | `enrollments` | Junction table linking students to courses; enforces 6-course cap |
 | `calendar_events` | Scheduled events scoped to a course with date, time, and description |
@@ -204,11 +197,9 @@ flowchart TD
 
 | Method | Path | Auth | Role | Description |
 |---|---|---|---|---|
-| POST | `/api/auth/register` | No | any | Self-register with username + password + role |
+| POST | `/api/auth/register` | No | any | Self-register (student/lecturer) with username + password |
 | POST | `/api/auth/login` | No | any | Login with username + password, returns JWT |
-| GET | `/api/auth/google/login` | No | any | Redirect to Google OAuth consent screen |
-| GET | `/api/auth/google/callback` | No | any | Handle OAuth callback, issue JWT |
-| POST | `/api/auth/admin/create-user` | Yes | admin | Admin creates account for any user |
+| POST | `/api/auth/admin/create-user` | Yes | admin | Admin creates account for any user (incl. admin) |
 
 ### Users
 
@@ -743,27 +734,44 @@ Everything else is blocked until this is done. This phase produces the shared fo
 - Docker Compose up: MySQL, Redis, Flask skeleton, Celery worker
 - All 14 migration files written and applied in order
 - `users` table, bcrypt password hashing, JWT sign + verify
-- Google OAuth callback working end-to-end
 - `@require_role` decorator available and tested
 - `db.get_connection()` stable and documented for other streams
 - Redis cache helpers written and tested
 - Celery app wired to Redis broker, test task confirmed running
+- Minimal React login page hitting the real `/api/auth/login` and `/api/users/me`
 
 **Exit criteria:** `POST /api/auth/register` and `POST /api/auth/login` return valid JWTs. A protected test route returns 401 without a token and 200 with one. `docker compose up` starts all services without errors.
 
 ---
 
 ### Phase 2 — Core API Routes
-**Owners: Carl, Tramonique, Tam (parallel after Phase 1 merges)**
+**Owners: Carl, Tramonique, Tamarica (parallel after Phase 1 merges)**
 
-Each stream works independently on `develop` after pulling Phase 1.
+Each stream works on its own branch off `develop` after pulling Phase 1.
+The first PR is scoped small so every teammate hits a real milestone fast.
 
-- **Tam:** Courses CRUD, enrollment (cap enforcement), calendar events, content sections
-- **Tramonique:** Forums, threads, nested replies (recursive CTE provided by Camarly), reply-to-reply
-- **Carl:** Assignments, submissions, grading endpoint, student average (synchronous first pass)
-- **Camarly:** Reviews PRs, fixes integration issues, adds cache calls on expensive GETs
+**First-PR scope (turns stub tests green, unblocks the team):**
+- **Tamarica:** `POST /api/courses`, `GET /api/courses`, `GET /api/courses/:id`
+- **Tramonique:** `POST /api/courses/:id/forums`, `GET /api/courses/:id/forums`
+- **Carl:** `POST /api/courses/:id/assignments`, `GET /api/courses/:id/assignments`, `GET /api/assignments/:id`
 
-**Exit criteria:** Every endpoint in the API table returns the correct status code and JSON shape when called with a valid JWT from Postman.
+Each first-PR test file already lives in `backend/tests/` and fails until
+the teammate implements their three functions + route wiring. Once
+`pytest tests/test_<stream>.py` is green the teammate opens a PR into
+`develop`. Camarly reviews, merges, and the next slice of TODOs in each
+teammate's guide becomes available.
+
+**Follow-up PRs (after the first merge):**
+- **Tamarica:** enrollment (6-course cap), calendar events, content sections
+- **Tramonique:** threads, nested replies (recursive CTE), reply-to-reply
+- **Carl:** submissions, grading endpoint, student grades endpoint
+
+**Camarly in parallel:**
+- Reviews teammate PRs for correct use of `@require_role` and `get_connection`
+- Adds Redis cache calls to team GET routes on review (doesn't block their PR)
+- Polishes shared patterns, commits small fixes to `develop`
+
+**Exit criteria:** Every endpoint in the API table returns the correct status code and JSON shape when called with a valid JWT from Postman. `pytest` is green end-to-end.
 
 ---
 
@@ -771,19 +779,22 @@ Each stream works independently on `develop` after pulling Phase 1.
 **Owner: Camarly Thomas + Carl Heron**
 
 - **Camarly:** Celery bulk seed task — 100k+ students, 200+ courses, all constraint rules met (chunked inserts)
-- **Carl:** All five SQL Views created, five report endpoints returning correct data from Views
-- **Camarly:** Async grade recalculation task replaces synchronous version in Carl's service
-- **All streams:** Cache invalidation wired to all mutating POST routes
-- **Tramonique + Tam:** Postman collection fully documented with seeded data IDs
+- **Camarly:** Wire the async Celery grade recalculation task into `grade_service.py` (replaces Carl's synchronous first pass)
+- **Carl:** Five report endpoints returning correct data from the SQL views shipped in migration 014
+- **All streams:** Cache invalidation wired to every mutating POST route
+- **Tramonique + Tamarica:** Postman collection fully documented with seeded data IDs
 
 **Exit criteria:** Seed completes without errors in under 10 minutes. All report endpoints return correct data against the seeded dataset. Celery processes the grade recalculation task from the queue.
 
 ---
 
 ### Phase 4 — Frontend, Bonus & Polish
-**Owner: Camarly Thomas (with style input from Carl, Tramonique, Tam)**
+**Owner: Camarly Thomas (with style input from Carl, Tramonique, Tamarica)**
 
-- React pages consuming all API modules
+Runs concurrent with Phase 3. The Phase 1 login page is already live —
+Phase 4 builds the rest of the React SPA on top of it.
+
+- React pages consuming all API modules (dashboard, courses, forums, assignments, reports)
 - UI styled according to colour suggestions collected from team in group meeting
 - GitHub Actions CI pipeline (lint + test on every PR)
 - Nginx production config (proxy + static build serving)

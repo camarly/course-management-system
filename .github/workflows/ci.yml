@@ -75,9 +75,6 @@ jobs:
           SECRET_KEY: ci-test-secret-key
           JWT_SECRET: ci-test-jwt-secret
           JWT_EXPIRY_HOURS: 24
-          GOOGLE_CLIENT_ID: placeholder
-          GOOGLE_CLIENT_SECRET: placeholder
-          GOOGLE_REDIRECT_URI: http://localhost/api/auth/google/callback
           FLASK_ENV: testing
           FLASK_DEBUG: 0
         run: pytest tests/ -v --tb=short

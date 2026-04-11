@@ -1,12 +1,36 @@
 /**
  * Axios base client.
  *
- * Creates a pre-configured Axios instance with:
- *   - baseURL pointing to /api
- *   - Request interceptor: attaches Authorization: Bearer <token> from localStorage
- *   - Response interceptor: redirects to /login on 401
- *
- * All other API modules import and use this instance — never call axios directly.
- *
- * Owner: Camarly Thomas
+ * Pre-configured Axios instance used by every API module:
+ *   - baseURL: /api  (proxied by Vite dev server or Nginx in prod)
+ *   - Attaches Authorization: Bearer <token> from localStorage
+ *   - On 401, clears the token and redirects to /login
  */
+
+import axios from 'axios'
+
+const client = axios.create({
+  baseURL: '/api',
+  headers: { 'Content-Type': 'application/json' },
+})
+
+client.interceptors.request.use((config) => {
+  const token = localStorage.getItem('lms_token')
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+
+client.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('lms_token')
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login')
+      }
+    }
+    return Promise.reject(error)
+  },
+)
+
+export default client

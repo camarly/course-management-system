@@ -1,18 +1,13 @@
 """
-Tests for calendar event endpoints.
+Calendar tests — Tamarica Shaw (second PR).
 
-Covers:
-    - POST /api/courses/<id>/events
-    - GET  /api/courses/<id>/events
-    - GET  /api/students/<id>/events?date=YYYY-MM-DD  (date filter)
+Scoped out of the first PR; her first PR focuses on courses. Keep this
+file as a placeholder so test collection still shows where it will go.
 """
 
 import pytest
 
 
 class TestCalendar:
-    """Test cases for calendar event endpoints."""
-
     def test_placeholder(self):
-        """Placeholder — replace with real tests."""
-        pass
+        pytest.skip("Calendar comes in Tamarica's second PR")
