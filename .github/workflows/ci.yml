@@ -1,16 +1,8 @@
 name: CI
 
 on:
-  push:
-    branches:
-      - 'camarly/**'
-      - 'carl/**'
-      - 'tramonique/**'
-      - 'tamarica/**'
-      - 'shared/**'
   pull_request:
     branches:
-      - develop
       - main
 
 jobs:
