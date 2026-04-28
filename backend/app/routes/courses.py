@@ -15,5 +15,29 @@ Owner: Tamarica Shaw
 
 from flask import Blueprint, request, jsonify
 from app.middleware.roles import require_role
+from app.services import course_service
+
 
 courses_bp = Blueprint('courses', __name__, url_prefix='/api')
+
+
+
+
+
+@courses_bp.route('/courses', methods=['GET'])
+@require_role('admin', 'lecturer', 'student')
+def list_courses(current_user):
+    """
+    List all courses.
+    
+    Any authenticated user can access.
+    
+    Returns:
+        200: {"data": [...], "message": None}
+    """
+    courses = course_service.list_courses()
+    
+    return jsonify({
+        "data": courses,
+        "message": None
+    }), 200

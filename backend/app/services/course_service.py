@@ -15,3 +15,19 @@ Owner: Tamarica Shaw
 """
 
 from app.db.connection import get_connection
+def list_courses():
+    """
+    List all courses.
+    
+    """
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor(dictionary=True) as cur:
+            cur.execute(
+                "SELECT id, title, description, lecturer_id, created_at FROM courses ORDER BY id"
+            )
+            return cur.fetchall()  
+    finally:
+        if conn:
+            conn.close()
