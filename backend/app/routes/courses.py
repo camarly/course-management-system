@@ -15,5 +15,27 @@ Owner: Tamarica Shaw
 
 from flask import Blueprint, request, jsonify
 from app.middleware.roles import require_role
+from app.services import course_service
 
 courses_bp = Blueprint('courses', __name__, url_prefix='/api')
+
+
+@courses_bp.route('/courses/<int:course_id>', methods=['GET'])
+@require_role('admin', 'lecturer', 'student')
+def get_course(current_user, course_id):
+    """
+    Get a single course by ID.
+    
+    """
+    course = course_service.get_course(course_id)
+    
+    if course is None:
+        return jsonify({
+            "error": "not_found",
+            "message": "Course not found"
+        }), 404
+    
+    return jsonify({
+        "data": course,
+        "message": "Course retrieved"
+    }), 200
