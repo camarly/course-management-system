@@ -1,4 +1,4 @@
-# Ca and rl Heron — Setup & Work Guide
+# Carl Heron — Setup & Work Guide
 
 ## Your stream
 Assignments · Submissions · Grades · Reports
