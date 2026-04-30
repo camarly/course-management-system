@@ -1,15 +1,17 @@
 /**
  * Protected route wrapper.
  *
- * Reads the current user from AuthContext.
- * If no token is present, redirects to /login.
- * If an allowedRoles prop is supplied, redirects to /unauthorised
- * when the user's role is not in the list.
- *
- * Usage:
- *   <ProtectedRoute allowedRoles={['admin', 'lecturer']}>
- *     <SomePage />
- *   </ProtectedRoute>
- *
  * Owner: Camarly Thomas
  */
+
+import { Navigate } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext.jsx'
+
+export default function ProtectedRoute({ allowedRoles, children }) {
+  const { token, currentUser } = useAuth()
+  if (!token) return <Navigate to="/login" replace />
+  if (allowedRoles && currentUser && !allowedRoles.includes(currentUser.role)) {
+    return <Navigate to="/unauthorised" replace />
+  }
+  return children
+}

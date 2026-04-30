@@ -1,48 +1,128 @@
 /**
- * Minimal dashboard — Phase 1 scope only.
- * Calls GET /api/users/me with the stored JWT and displays the profile.
- * Richer role-aware dashboards land in Phase 4.
+ * Role-aware dashboard.
  */
 
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { me } from '../api/auth'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext.jsx'
+import { getStudentCourses, getLecturerCourses, getAllCourses } from '../api/courses'
+import { getStudentEvents } from '../api/calendar'
+import CourseCard from '../components/CourseCard.jsx'
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10)
+}
 
 export default function DashboardPage() {
-  const navigate = useNavigate()
-  const [profile, setProfile] = useState(null)
+  const { currentUser } = useAuth()
+  const [courses, setCourses] = useState([])
+  const [events, setEvents] = useState([])
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    me().then(setProfile).catch((e) => {
-      setError(e.response?.data?.message || 'Failed to load profile')
-    })
-  }, [])
+    if (!currentUser) return
+    setLoading(true)
+    setError('')
 
-  function logout() {
-    localStorage.removeItem('lms_token')
-    localStorage.removeItem('lms_user')
-    navigate('/login', { replace: true })
-  }
+    async function load() {
+      try {
+        if (currentUser.role === 'student') {
+          const [c, e] = await Promise.all([
+            getStudentCourses(currentUser.id),
+            getStudentEvents(currentUser.id, todayISO()).catch(() => []),
+          ])
+          setCourses(c || [])
+          setEvents(e || [])
+        } else if (currentUser.role === 'lecturer') {
+          setCourses(await getLecturerCourses(currentUser.id))
+        } else if (currentUser.role === 'admin') {
+          setCourses(await getAllCourses())
+        }
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to load dashboard')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    load()
+  }, [currentUser])
+
+  if (!currentUser) return null
 
   return (
-    <div className="dashboard">
-      <header>
-        <h1>LMS Dashboard</h1>
-        <button onClick={logout}>Log out</button>
+    <div className="page">
+      <header className="page-header">
+        <h1>Welcome, {currentUser.username}</h1>
+        <p className="muted">Signed in as {currentUser.role}</p>
       </header>
+
       {error && <p className="error">{error}</p>}
-      {profile ? (
+      {loading && <p>Loading…</p>}
+
+      {currentUser.role === 'student' && (
+        <>
+          <section>
+            <h2>Today's events</h2>
+            {events.length === 0 ? (
+              <p className="muted">Nothing scheduled for today.</p>
+            ) : (
+              <ul className="event-list">
+                {events.map((ev) => (
+                  <li key={ev.id}>
+                    <strong>{ev.title}</strong> — {ev.course_title}
+                    {ev.event_time && <span> @ {ev.event_time}</span>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+          <section>
+            <h2>My courses</h2>
+            {courses.length === 0 ? (
+              <p className="muted">
+                You aren't enrolled in any courses yet. <Link to="/courses">Browse the catalogue</Link>.
+              </p>
+            ) : (
+              <div className="card-grid">
+                {courses.map((c) => (
+                  <CourseCard key={c.id} course={c} />
+                ))}
+              </div>
+            )}
+          </section>
+        </>
+      )}
+
+      {currentUser.role === 'lecturer' && (
         <section>
-          <h2>Welcome, {profile.username}</h2>
-          <dl>
-            <dt>ID</dt><dd>{profile.id}</dd>
-            <dt>Email</dt><dd>{profile.email}</dd>
-            <dt>Role</dt><dd>{profile.role}</dd>
-          </dl>
+          <h2>Courses I teach</h2>
+          {courses.length === 0 ? (
+            <p className="muted">No courses assigned yet.</p>
+          ) : (
+            <div className="card-grid">
+              {courses.map((c) => (
+                <CourseCard key={c.id} course={c} />
+              ))}
+            </div>
+          )}
         </section>
-      ) : (
-        !error && <p>Loading…</p>
+      )}
+
+      {currentUser.role === 'admin' && (
+        <section>
+          <h2>All courses</h2>
+          <p className="muted">{courses.length} total</p>
+          <div className="card-grid">
+            {courses.map((c) => (
+              <CourseCard key={c.id} course={c} />
+            ))}
+          </div>
+          <p>
+            <Link to="/reports">View reports →</Link>
+          </p>
+        </section>
       )}
     </div>
   )
