@@ -17,7 +17,7 @@ Owner: Tamarica Shaw
 from app.db.connection import get_connection
 
 
-def create_course(title, description, lecturer_id):
+def create_course(title, description=None, lecturer_id=None):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -26,15 +26,14 @@ def create_course(title, description, lecturer_id):
                 "VALUES (%s, %s, %s)",
                 (title, description, lecturer_id),
             )
-            course_id = cur.lastrowid
             conn.commit()
-
-            cur.execute(
-                "SELECT id, title, description, lecturer_id, created_at, updated_at "
-                "FROM courses WHERE id = %s",
-                (course_id,),
-            )
-            return cur.fetchone()
+            new_id = cur.lastrowid
+        return {
+            "id": new_id,
+            "title": title,
+            "description": description,
+            "lecturer_id": lecturer_id,
+        }
     finally:
         conn.close()
 
@@ -62,5 +61,107 @@ def get_course(course_id):
                 (course_id,),
             )
             return cur.fetchone()
+    finally:
+        conn.close()
+
+
+def get_members(course_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Lecturer
+            cur.execute(
+                "SELECT u.id, u.username, u.email, u.role "
+                "FROM users u "
+                "JOIN courses c ON c.lecturer_id = u.id "
+                "WHERE c.id = %s",
+                (course_id,),
+            )
+            members = cur.fetchall()
+
+            # Enrolled students
+            cur.execute(
+                "SELECT u.id, u.username, u.email, u.role "
+                "FROM users u "
+                "JOIN enrollments e ON e.student_id = u.id "
+                "WHERE e.course_id = %s "
+                "ORDER BY u.id",
+                (course_id,),
+            )
+            members.extend(cur.fetchall())
+            return members
+    finally:
+        conn.close()
+
+
+def assign_lecturer(course_id, lecturer_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            # Verify lecturer exists and has role 'lecturer'
+            cur.execute(
+                "SELECT id, role FROM users WHERE id = %s",
+                (lecturer_id,),
+            )
+            user = cur.fetchone()
+            if not user:
+                raise ValueError("not_found")
+            if user["role"] != "lecturer":
+                raise ValueError("not_lecturer")
+
+            # Enforce 5-course cap (exclude the current course if already assigned)
+            cur.execute(
+                "SELECT COUNT(*) AS cnt FROM courses "
+                "WHERE lecturer_id = %s AND id != %s",
+                (lecturer_id, course_id),
+            )
+            if cur.fetchone()["cnt"] >= 5:
+                raise ValueError("lecturer_limit")
+
+            # Replace existing assignment
+            cur.execute(
+                "UPDATE courses SET lecturer_id = %s WHERE id = %s",
+                (lecturer_id, course_id),
+            )
+            conn.commit()
+
+            cur.execute(
+                "SELECT id, title, description, lecturer_id, created_at "
+                "FROM courses WHERE id = %s",
+                (course_id,),
+            )
+            return cur.fetchone()
+    finally:
+        conn.close()
+
+
+def get_student_courses(student_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT c.id, c.title, c.description, c.lecturer_id, c.created_at "
+                "FROM courses c "
+                "JOIN enrollments e ON e.course_id = c.id "
+                "WHERE e.student_id = %s "
+                "ORDER BY c.id",
+                (student_id,),
+            )
+            return cur.fetchall()
+    finally:
+        conn.close()
+
+
+def get_lecturer_courses(lecturer_id):
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, title, description, lecturer_id, created_at "
+                "FROM courses WHERE lecturer_id = %s "
+                "ORDER BY id",
+                (lecturer_id,),
+            )
+            return cur.fetchall()
     finally:
         conn.close()

@@ -3,11 +3,13 @@
  */
 
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { login } from '../api/auth'
+import { Link, useNavigate } from 'react-router-dom'
+import { login as loginApi } from '../api/auth'
+import { useAuth } from '../context/AuthContext.jsx'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,13 +20,11 @@ export default function LoginPage() {
     setError('')
     setLoading(true)
     try {
-      const { token, user } = await login(username, password)
-      localStorage.setItem('lms_token', token)
-      localStorage.setItem('lms_user', JSON.stringify(user))
+      const result = await loginApi(username, password)
+      login(result)
       navigate('/dashboard', { replace: true })
     } catch (err) {
-      const msg = err.response?.data?.message || 'Login failed'
-      setError(msg)
+      setError(err.response?.data?.message || 'Login failed')
     } finally {
       setLoading(false)
     }
@@ -59,9 +59,7 @@ export default function LoginPage() {
         </button>
       </form>
       <p className="hint">
-        Don't have an account? Register via{' '}
-        <code>POST /api/auth/register</code> — a frontend registration
-        form lands in Phase 4.
+        New here? <Link to="/register">Create an account</Link>.
       </p>
     </div>
   )
