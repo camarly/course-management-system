@@ -135,3 +135,44 @@ def assign_lecturer_to_course(course_id, lecturer_id):
     finally:
         if conn:
             conn.close()
+
+
+
+def get_courses_for_student(student_id):
+    """
+    Get all courses for a specific student.
+    
+    
+    """
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            
+            cur.execute(
+                """
+                SELECT c.id, c.title, c.description, c.lecturer_id, c.created_at
+                FROM courses c
+                JOIN course_enrollments ce ON ce.course_id = c.id
+                WHERE ce.student_id = %s
+                ORDER BY c.id
+                """,
+                (student_id,)
+            )
+            results = cur.fetchall()
+            
+            
+            courses = []
+            for row in results:
+                courses.append({
+                    "id": row["id"],
+                    "title": row["title"],
+                    "description": row["description"],
+                    "lecturer_id": row["lecturer_id"],
+                    "created_at": str(row["created_at"]) if row["created_at"] else None
+                })
+            
+            return courses
+    finally:
+        if conn:
+            conn.close()
