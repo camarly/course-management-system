@@ -138,26 +138,24 @@ def assign_lecturer_to_course(course_id, lecturer_id):
 
 
 
-def get_courses_for_student(student_id):
+def get_courses_for_lecturer(lecturer_id):
     """
-    Get all courses for a specific student.
-    
-    
+    Get all courses for a specific lecturer.
+   
     """
     conn = None
     try:
         conn = get_connection()
         with conn.cursor() as cur:
-            
+           
             cur.execute(
                 """
-                SELECT c.id, c.title, c.description, c.lecturer_id, c.created_at
-                FROM courses c
-                JOIN course_enrollments ce ON ce.course_id = c.id
-                WHERE ce.student_id = %s
-                ORDER BY c.id
+                SELECT id, title, description, lecturer_id, created_at
+                FROM courses
+                WHERE lecturer_id = %s
+                ORDER BY id
                 """,
-                (student_id,)
+                (lecturer_id,)
             )
             results = cur.fetchall()
             

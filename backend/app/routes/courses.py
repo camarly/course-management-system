@@ -59,24 +59,22 @@ def get_course(current_user, course_id):
     return jsonify({"data": course, "message": "Course retrieved"}), 200
 
 
-
-@courses_bp.route('/students/<int:student_id>/courses', methods=['GET'])
+@courses_bp.route('/lecturers/<int:lecturer_id>/courses', methods=['GET'])
 @require_role('admin', 'lecturer', 'student')
-def get_student_courses(current_user, student_id):
+def get_lecturer_courses(current_user, lecturer_id):
     """
-    Get all courses for a specific student.
-    
-    
+    Get all courses for a specific lecturer.
+   
     """
     
-    if current_user['role'] == 'student' and current_user['id'] != student_id:
+    if current_user['role'] == 'lecturer' and current_user['id'] != lecturer_id:
         return jsonify({
             "error": "forbidden",
-            "message": "Students can only view their own courses"
+            "message": "Lecturers can only view their own courses"
         }), 403
     
     
-    courses = course_service.get_courses_for_student(student_id)
+    courses = course_service.get_courses_for_lecturer(lecturer_id)
     
     return jsonify({
         "data": courses,
