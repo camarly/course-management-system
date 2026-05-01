@@ -6,9 +6,19 @@ registers CORS, and mounts all route blueprints.
 """
 
 import logging
-from flask import Flask
+import os
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 from app import config
+
+# Path inside the combined image (built by the root Dockerfile) where
+# the React production build is copied. When this directory exists at
+# runtime, Flask serves the SPA at "/" and falls back to index.html for
+# unknown non-API paths so client-side routes like /courses/123 work
+# on a hard refresh. When it doesn't exist (local docker-compose, where
+# nginx + Vite handle the frontend), the SPA route is simply not
+# registered — the API runs exactly as before.
+_FRONTEND_DIR = os.environ.get("FRONTEND_STATIC_DIR", "/app/static_frontend")
 
 logger = logging.getLogger(__name__)
 
@@ -58,6 +68,20 @@ def create_app():
     @app.route("/api/health")
     def health():
         return {"status": "ok", "env": config.FLASK_ENV}
+
+    # --- SPA (combined-image deploy only) --------------------------------
+    if os.path.isdir(_FRONTEND_DIR):
+        @app.route("/", defaults={"path": ""})
+        @app.route("/<path:path>")
+        def serve_spa(path):
+            if path.startswith("api/"):
+                return jsonify({"error": "not_found", "message": "Endpoint not found"}), 404
+            target = os.path.join(_FRONTEND_DIR, path) if path else None
+            if target and os.path.isfile(target):
+                return send_from_directory(_FRONTEND_DIR, path)
+            return send_from_directory(_FRONTEND_DIR, "index.html")
+
+        logger.info("SPA static serving enabled from %s", _FRONTEND_DIR)
 
     logger.info("Flask app created — %d blueprints registered", len(app.blueprints))
     return app
