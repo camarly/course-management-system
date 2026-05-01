@@ -57,3 +57,24 @@ def get_course(current_user, course_id):
             "message": "Course not found",
         }), 404
     return jsonify({"data": course, "message": "Course retrieved"}), 200
+
+
+@courses_bp.route('/courses/<int:course_id>/members', methods=['GET'])
+@require_role('admin', 'lecturer', 'student')
+def get_course_members(current_user, course_id):
+    """
+    Get all members of a course (students + lecturer).
+    
+    """
+    members = course_service.get_course_members(course_id)
+    
+    if members is None:
+        return jsonify({
+            "error": "not_found",
+            "message": "Course not found"
+        }), 404
+    
+    return jsonify({
+        "data": members,
+        "message": "Course members retrieved"
+    }), 200

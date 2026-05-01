@@ -64,3 +64,80 @@ def get_course(course_id):
             return cur.fetchone()
     finally:
         conn.close()
+
+
+def get_course_members(course_id):
+    """
+    Get all members of a course (students + lecturer).
+    
+    Args:
+        course_id (int): The course ID
+    
+    Returns:
+        dict: Dictionary with 'lecturer' and 'students' keys
+              Returns None if course doesn't exist
+    """
+    conn = None
+    try:
+        conn = get_connection()
+        with conn.cursor() as cur:
+            
+            cur.execute(
+                "SELECT id FROM courses WHERE id = %s",
+                (course_id,)
+            )
+            if not cur.fetchone():
+                return None
+            
+            # Get lecturer info (if assigned)
+            cur.execute(
+                """
+                SELECT u.id, u.name, u.email, u.role
+                FROM users u
+                JOIN courses c ON c.lecturer_id = u.id
+                WHERE c.id = %s AND u.role = 'lecturer'
+                """,
+                (course_id,)
+            )
+            lecturer_result = cur.fetchone()
+            
+            lecturer = None
+            if lecturer_result:
+                lecturer = {
+                    "id": lecturer_result["id"],
+                    "name": lecturer_result["name"],
+                    "email": lecturer_result["email"],
+                    "role": lecturer_result["role"]
+                }
+            
+            # Get all students enrolled in the course
+            cur.execute(
+                """
+                SELECT u.id, u.name, u.email, u.role
+                FROM users u
+                JOIN course_enrollments ce ON ce.student_id = u.id
+                WHERE ce.course_id = %s AND u.role = 'student'
+                ORDER BY u.name
+                """,
+                (course_id,)
+            )
+            student_results = cur.fetchall()
+            
+            students = []
+            for row in student_results:
+                students.append({
+                    "id": row["id"],
+                    "name": row["name"],
+                    "email": row["email"],
+                    "role": row["role"]
+                })
+            
+            return {
+                "lecturer": lecturer,
+                "students": students
+            }
+    finally:
+        if conn:
+            conn.close()
+
+            
