@@ -1,0 +1,891 @@
+{
+  "info": {
+    "name": "CMS API",
+    "description": "Course Management System (LMS) — full API surface for COMP3161 final project.\n\nAuth: JWT bearer token. The collection-level pre-request script automatically logs in using `{{test_username}}` and `{{test_password}}` from the active environment and stores the token in `{{jwt_token}}`. Public routes (login, register, health) opt out of bearer auth at the request level.\n\nEnvelope: every endpoint returns either `{ \"data\": ..., \"message\": ... }` or `{ \"error\": ..., \"message\": ... }`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_postman_id": "cms-api-2026"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{jwt_token}}", "type": "string" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-login: if no jwt_token in the active environment, hit /api/auth/login",
+          "// and stash the returned token. Subsequent requests reuse it via the",
+          "// collection-level Bearer auth ({{jwt_token}}).",
+          "if (!pm.environment.get('jwt_token')) {",
+          "    const baseUrl = pm.environment.get('base_url');",
+          "    if (!baseUrl) {",
+          "        console.warn('No base_url set in environment — skipping auto-login.');",
+          "        return;",
+          "    }",
+          "    pm.sendRequest({",
+          "        url: baseUrl + '/api/auth/login',",
+          "        method: 'POST',",
+          "        header: { 'Content-Type': 'application/json' },",
+          "        body: {",
+          "            mode: 'raw',",
+          "            raw: JSON.stringify({",
+          "                username: pm.environment.get('test_username'),",
+          "                password: pm.environment.get('test_password')",
+          "            })",
+          "        }",
+          "    }, function (err, res) {",
+          "        if (err) { console.error('Auto-login request failed:', err); return; }",
+          "        let body;",
+          "        try { body = res.json(); } catch (_) { body = null; }",
+          "        const token = body && body.data && body.data.token;",
+          "        if (token) {",
+          "            pm.environment.set('jwt_token', token);",
+          "            console.log('jwt_token set via auto-login');",
+          "        } else {",
+          "            console.warn('Login did not return data.token. Response:', body);",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000", "type": "default" }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health check",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/health",
+              "host": ["{{base_url}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Liveness probe. Public. Returns `{ status: \"ok\", env: ... }`."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register (student or lecturer)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"newstudent01\",\n    \"email\": \"newstudent01@example.com\",\n    \"password\": \"password123\",\n    \"role\": \"student\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Self-register. `role` must be `student` or `lecturer` (admin role rejected). Public."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"{{test_username}}\",\n    \"password\": \"{{test_password}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login with username + password. Returns JWT under `data.token`. Public.\n\nThis is the same call the collection-level pre-request script runs automatically."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin: create user (any role)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"username\": \"lecturer05\",\n    \"email\": \"lecturer05@example.com\",\n    \"password\": \"password123\",\n    \"role\": \"lecturer\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/create-user",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "admin", "create-user"]
+            },
+            "description": "Admin-only: create an account with any role (incl. admin)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get my profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", "me"]
+            },
+            "description": "Current authenticated user's profile (any role)."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin: list all users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Admin-only: list every registered user."
+          },
+          "response": []
+        },
+        {
+          "name": "Admin: get user by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/users/:user_id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "users", ":user_id"],
+              "variable": [
+                { "key": "user_id", "value": "1", "description": "User ID" }
+              ]
+            },
+            "description": "Admin-only: get a single user by ID."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Courses",
+      "item": [
+        {
+          "name": "Create course (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Database Systems\",\n    \"description\": \"COMP3161 — relational design, SQL, normalisation\",\n    \"lecturer_id\": 2\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/courses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses"]
+            },
+            "description": "Admin-only: create a new course. `lecturer_id` is optional and may be assigned later."
+          },
+          "response": []
+        },
+        {
+          "name": "List all courses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/courses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses"]
+            },
+            "description": "List every course. Any authenticated role."
+          },
+          "response": []
+        },
+        {
+          "name": "Get course by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "Get a single course. Any authenticated role. 404 if not found."
+          },
+          "response": []
+        },
+        {
+          "name": "Get course members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/members",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "members"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "Lecturer + enrolled students for a course. Any authenticated role."
+          },
+          "response": []
+        },
+        {
+          "name": "Assign lecturer to course (admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"lecturer_id\": 2\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/assign-lecturer",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "assign-lecturer"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "Admin-only: assign (or replace) the lecturer for a course. Enforces the 5-course-per-lecturer cap."
+          },
+          "response": []
+        },
+        {
+          "name": "Get courses for a student",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/students/:student_id/courses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "students", ":student_id", "courses"],
+              "variable": [
+                { "key": "student_id", "value": "1" }
+              ]
+            },
+            "description": "All courses a student is enrolled in. Admin or that student."
+          },
+          "response": []
+        },
+        {
+          "name": "Get courses for a lecturer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/lecturers/:lecturer_id/courses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "lecturers", ":lecturer_id", "courses"],
+              "variable": [
+                { "key": "lecturer_id", "value": "2" }
+              ]
+            },
+            "description": "All courses taught by a lecturer. Admin or that lecturer."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Enrollments",
+      "item": [
+        {
+          "name": "Enroll in a course (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/enroll",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "enroll"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "Student self-enrolls. Body is empty (the current user is taken from the JWT). 403 if at the 6-course cap, 409 if already enrolled."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Calendar",
+      "item": [
+        {
+          "name": "Create event (lecturer/admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Quiz 1\",\n    \"description\": \"Covers chapters 1-3\",\n    \"event_date\": \"2026-05-15\",\n    \"event_time\": \"14:00\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/events",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "events"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "Lecturer or admin posts a calendar event for a course."
+          },
+          "response": []
+        },
+        {
+          "name": "List events for a course",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/events",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "events"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "All events for a course. Any authenticated role."
+          },
+          "response": []
+        },
+        {
+          "name": "Student events on a date",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/students/:student_id/events?date=2026-05-15",
+              "host": ["{{base_url}}"],
+              "path": ["api", "students", ":student_id", "events"],
+              "query": [
+                { "key": "date", "value": "2026-05-15", "description": "YYYY-MM-DD (required)" }
+              ],
+              "variable": [
+                { "key": "student_id", "value": "1" }
+              ]
+            },
+            "description": "Events on a specific date across the student's enrolled courses. Admin or that student. `?date=YYYY-MM-DD` is required."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Content",
+      "item": [
+        {
+          "name": "Create section (lecturer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Week 1 — Introduction\",\n    \"position\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/sections",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "sections"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "Lecturer-only: add a content section to a course."
+          },
+          "response": []
+        },
+        {
+          "name": "List sections (with nested items)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/sections",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "sections"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "All sections for a course, with their content items nested. Any authenticated role."
+          },
+          "response": []
+        },
+        {
+          "name": "Add content item to section (lecturer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Lecture 1 slides\",\n    \"item_type\": \"slides\",\n    \"url\": \"https://example.com/lecture1.pdf\",\n    \"position\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/sections/:section_id/items",
+              "host": ["{{base_url}}"],
+              "path": ["api", "sections", ":section_id", "items"],
+              "variable": [
+                { "key": "section_id", "value": "1" }
+              ]
+            },
+            "description": "Lecturer-only: attach a content item (slides/video/link/etc.) to a section."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Forums",
+      "item": [
+        {
+          "name": "Create forum (lecturer/admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"General discussion\",\n    \"description\": \"Ask anything about the course\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/forums",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "forums"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "Lecturer or admin: create a discussion forum on a course."
+          },
+          "response": []
+        },
+        {
+          "name": "List forums for a course",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/forums",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "forums"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "All forums for a course. Any authenticated role."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Threads",
+      "item": [
+        {
+          "name": "Create thread",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Help with Homework 1\",\n    \"body\": \"I'm stuck on question 3 — can someone explain the join?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/forums/:forum_id/threads",
+              "host": ["{{base_url}}"],
+              "path": ["api", "forums", ":forum_id", "threads"],
+              "variable": [
+                { "key": "forum_id", "value": "1" }
+              ]
+            },
+            "description": "Any authenticated role: open a new thread in a forum (title + opening post body)."
+          },
+          "response": []
+        },
+        {
+          "name": "List threads in a forum",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/forums/:forum_id/threads",
+              "host": ["{{base_url}}"],
+              "path": ["api", "forums", ":forum_id", "threads"],
+              "variable": [
+                { "key": "forum_id", "value": "1" }
+              ]
+            },
+            "description": "All threads in a forum. Any authenticated role."
+          },
+          "response": []
+        },
+        {
+          "name": "Get thread (with full nested reply tree)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/threads/:thread_id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "threads", ":thread_id"],
+              "variable": [
+                { "key": "thread_id", "value": "1" }
+              ]
+            },
+            "description": "A single thread with its full nested reply tree. Any authenticated role. 404 if not found."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Replies",
+      "item": [
+        {
+          "name": "Reply to thread",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"body\": \"Try checking the lecture notes from week 3.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/threads/:thread_id/replies",
+              "host": ["{{base_url}}"],
+              "path": ["api", "threads", ":thread_id", "replies"],
+              "variable": [
+                { "key": "thread_id", "value": "1" }
+              ]
+            },
+            "description": "Top-level reply directly to a thread. Any authenticated role."
+          },
+          "response": []
+        },
+        {
+          "name": "Reply to reply (nested)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"body\": \"Thanks, that helped!\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/replies/:reply_id/replies",
+              "host": ["{{base_url}}"],
+              "path": ["api", "replies", ":reply_id", "replies"],
+              "variable": [
+                { "key": "reply_id", "value": "1" }
+              ]
+            },
+            "description": "Nested reply (unlimited depth). The thread is inferred from the parent reply. 404 if the parent reply does not exist."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Assignments",
+      "item": [
+        {
+          "name": "Create assignment (lecturer/admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"title\": \"Homework 1\",\n    \"description\": \"Schema design for a small inventory system\",\n    \"due_date\": \"2026-05-20T23:59:00\",\n    \"weight\": 20\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/assignments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "assignments"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "Lecturer or admin creates an assignment. `weight` is the percentage contribution to the final grade."
+          },
+          "response": []
+        },
+        {
+          "name": "List assignments for a course",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/courses/:course_id/assignments",
+              "host": ["{{base_url}}"],
+              "path": ["api", "courses", ":course_id", "assignments"],
+              "variable": [
+                { "key": "course_id", "value": "1" }
+              ]
+            },
+            "description": "All assignments for a course, ordered by due date. Any authenticated role."
+          },
+          "response": []
+        },
+        {
+          "name": "Get assignment by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/assignments/:assignment_id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assignments", ":assignment_id"],
+              "variable": [
+                { "key": "assignment_id", "value": "1" }
+              ]
+            },
+            "description": "Single assignment by ID. Any authenticated role. 404 if not found."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Submissions",
+      "item": [
+        {
+          "name": "Submit assignment (student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"file_url\": \"https://example.com/student1-hw1.pdf\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/assignments/:assignment_id/submit",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assignments", ":assignment_id", "submit"],
+              "variable": [
+                { "key": "assignment_id", "value": "1" }
+              ]
+            },
+            "description": "Student submits an assignment. The student is taken from the JWT. 409 if a submission already exists."
+          },
+          "response": []
+        },
+        {
+          "name": "List submissions for an assignment (lecturer/admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/assignments/:assignment_id/submissions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "assignments", ":assignment_id", "submissions"],
+              "variable": [
+                { "key": "assignment_id", "value": "1" }
+              ]
+            },
+            "description": "Lecturer or admin: every student's submission for an assignment."
+          },
+          "response": []
+        },
+        {
+          "name": "Get a student's grades",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/students/:student_id/grades",
+              "host": ["{{base_url}}"],
+              "path": ["api", "students", ":student_id", "grades"],
+              "variable": [
+                { "key": "student_id", "value": "1" }
+              ]
+            },
+            "description": "All graded submissions for a student. Admin or that student."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Grades",
+      "item": [
+        {
+          "name": "Grade a submission (lecturer)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"score\": 92,\n    \"feedback\": \"Strong submission. Consider tightening Q3 explanation.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/submissions/:submission_id/grade",
+              "host": ["{{base_url}}"],
+              "path": ["api", "submissions", ":submission_id", "grade"],
+              "variable": [
+                { "key": "submission_id", "value": "1" }
+              ]
+            },
+            "description": "Lecturer-only: record a grade for a submission. Triggers a Celery task that recalculates the student's overall average. 404 if submission missing, 409 if already graded."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reports (admin)",
+      "item": [
+        {
+          "name": "Courses with 50+ students",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reports/courses-50-plus",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "courses-50-plus"]
+            },
+            "description": "Admin-only. Reads from a SQL view. Cached for medium TTL."
+          },
+          "response": []
+        },
+        {
+          "name": "Students enrolled in 5+ courses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reports/students-5-plus-courses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "students-5-plus-courses"]
+            },
+            "description": "Admin-only. Reads from a SQL view. Cached for medium TTL."
+          },
+          "response": []
+        },
+        {
+          "name": "Lecturers teaching 3+ courses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reports/lecturers-3-plus-courses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "lecturers-3-plus-courses"]
+            },
+            "description": "Admin-only. Reads from a SQL view. Cached for medium TTL."
+          },
+          "response": []
+        },
+        {
+          "name": "Top 10 most-enrolled courses",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reports/top10-enrolled-courses",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "top10-enrolled-courses"]
+            },
+            "description": "Admin-only. Reads from a SQL view. Cached for medium TTL."
+          },
+          "response": []
+        },
+        {
+          "name": "Top 10 students by average grade",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/reports/top10-students-by-average",
+              "host": ["{{base_url}}"],
+              "path": ["api", "reports", "top10-students-by-average"]
+            },
+            "description": "Admin-only. Reads from a SQL view. Cached for medium TTL."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

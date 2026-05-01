@@ -43,3 +43,12 @@ desktop.ini
 # ── Uploads / secrets ───────────────────────────────────────────────────────
 uploads/
 *.cert
+
+# ── Private / local-only docs (never push) ──────────────────────────────────
+# Per-member onboarding docs and reviews stay on the author's machine.
+docs/CAMARLY_THOMAS.md
+docs/CARL_HERON.md
+docs/TAMARICA_SHAW.md
+docs/TRAMONIQUE_WELLINGTON.md
+docs/all_teammembers.md
+*-review.md
