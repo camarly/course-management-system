@@ -2,10 +2,15 @@
 # Stage 1 builds the React app; stage 2 runs Flask and serves
 # the built SPA as static files.
 
-FROM node:20-alpine AS frontend
+FROM node:20-slim AS frontend
 WORKDIR /build
-COPY frontend/package.json frontend/package-lock.json* ./
-RUN npm ci || npm install
+# Skip the lockfile here on purpose: it pins platform-specific rollup
+# binaries from whatever machine first generated it, which trips
+# npm/cli#4828 when the build runs on a different OS/arch (e.g. Mac
+# arm64 vs. Railway x64). A fresh `npm install` resolves the right
+# optional deps for the current platform.
+COPY frontend/package.json ./
+RUN npm install
 COPY frontend/ ./
 RUN npm run build
 
