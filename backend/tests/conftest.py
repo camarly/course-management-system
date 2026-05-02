@@ -27,6 +27,7 @@ import pytest
 
 # Make sure config validation passes before `app` is imported. These are
 # safe dummy values — tests never hit a real network.
+os.environ.setdefault("RUN_MIGRATIONS", "0")
 os.environ.setdefault("DB_HOST", "localhost")
 os.environ.setdefault("DB_PORT", "3306")
 os.environ.setdefault("DB_NAME", "lms_test")

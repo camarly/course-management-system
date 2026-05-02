@@ -64,6 +64,22 @@ def create_app():
     ]:
         app.register_blueprint(bp)
 
+    # --- Auto-apply migrations -------------------------------------------
+    # On platforms without a docker-entrypoint-initdb.d hook (e.g.
+    # Railway), the application itself must ensure the schema exists
+    # before serving requests. All migrations are idempotent (CREATE
+    # TABLE IF NOT EXISTS / CREATE OR REPLACE VIEW), so running them
+    # on every startup is a no-op once the DB is fully migrated.
+    # Set RUN_MIGRATIONS=0 to skip (used by the test suite, which
+    # patches get_connection to an in-memory fake before create_app).
+    if os.environ.get("RUN_MIGRATIONS", "1") == "1":
+        try:
+            from app.db.migrate import run_migrations
+            run_migrations()
+        except Exception:
+            logger.exception("Migration runner failed during startup")
+            raise
+
     # --- Health check -----------------------------------------------------
     @app.route("/api/health")
     def health():
