@@ -1,10 +1,10 @@
 # Course Management System (CMS) — COMP3161
 
-Full-stack Learning Management System built for COMP3161 — Database Systems. Flask + raw SQL on MySQL 8, Redis cache, Celery for async tasks, React + Vite for the UI, nginx in front, all in Docker.
+Full-stack Course Management System built for COMP3161 — Database Systems. Flask + raw SQL on MySQL 8, Redis cache, Celery for async tasks, React + Vite for the UI, nginx in front, all in Docker.
 
-> **Live deployment (Railway):** https://cms-uwi.up.railway.app
+> **Live:** https://cms-uwi.up.railway.app — single combined image deployed on Railway, MySQL + Redis as Railway plugins, schema auto-migrated on startup, fully seeded to spec (1 admin + 50 lecturers + 100,000 students; 200 courses; 300,000 enrollments; 585 assignments; 11,700 submissions + grades).
 >
-> **Submission artifacts:** ERD diagram and per-member contribution PDF are submitted separately. The `CONTRIBUTIONS.md` in this repo is the source for that PDF.
+> **Submission artifacts:** ERD diagram and per-member contributions PDF are submitted separately. `CONTRIBUTIONS.md` in this repo is the source for the contributions section.
 
 ---
 
@@ -60,9 +60,8 @@ Five admin-only reports backed by SQL views (migration `014_create_views.sql`) a
 The fastest way to grade the API is via the **Postman collection in `postman/`**. Two minutes to import, then everything is auto-authed:
 
 1. Postman → **File → Import** → drop in `postman/CMS_API.postman_collection.json` and `postman/environments/railway.postman_environment.json`.
-2. Top-right environment dropdown → pick **CMS — Railway**.
-3. Open the **CMS — Railway** environment, set `base_url` to the Railway URL above, save.
-4. Open any request (start with **Health → Health check**) and Send.
+2. Top-right environment dropdown → pick **CMS — Railway**. Both `base_url` (the Railway URL) and the seeded admin credentials (`admin` / `password123`) are pre-filled.
+3. Open any request (start with **Health → Health check**) and Send.
 
 The collection's pre-request script logs in automatically using `test_username` / `test_password` from the active environment and stores the JWT in `jwt_token`. Every protected request inherits a Bearer auth set at the collection level. See `postman/README.md` for the full walkthrough.
 
