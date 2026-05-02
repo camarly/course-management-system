@@ -16,19 +16,11 @@ A ready-to-import Postman collection covering every route registered on the Flas
 2. Drag in the three JSON files above (collection + both environment files).
 3. In the top-right environment dropdown, pick either **CMS — Local** or **CMS — Railway**.
 
-## Set the Railway URL
+## Railway environment — already configured
 
-Before using the **CMS — Railway** environment, replace the placeholder:
+The **CMS — Railway** environment ships with `base_url = https://cms-uwi.up.railway.app` and the seeded admin credentials (`admin` / `password123`) pre-filled. No edits needed before use.
 
-1. In Postman's left sidebar click **Environments → CMS — Railway**.
-2. Find the `base_url` row.
-3. Change `{{RAILWAY_URL}}` to your actual URL, e.g.
-   `https://cms-api-production.up.railway.app`
-   - No trailing slash.
-   - Use `https://`, not `http://`.
-4. Click **Save**.
-
-The Railway URL is the public address of the API service. If your Railway project also runs nginx in front of the API, point `base_url` at the nginx service URL instead — both work, since nginx proxies `/api/*` to the API container.
+To run as a different role, change `test_username` to `lecturer_0` (or any `lecturer_<n>` 0–49) or `student_0` (or any `student_<n>` 0–99999) and clear `jwt_token` so the next request re-logs-in.
 
 ## How JWT auth works
 
