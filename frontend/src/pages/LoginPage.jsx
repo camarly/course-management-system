@@ -32,7 +32,7 @@ export default function LoginPage() {
 
   return (
     <div className="auth-card">
-      <h1>LMS Login</h1>
+      <h1>CMS Login</h1>
       <form onSubmit={handleSubmit}>
         <label>
           Username
