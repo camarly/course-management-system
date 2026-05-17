@@ -17,10 +17,13 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// Auto-login: if no jwt_token in the active environment, hit /api/auth/login",
-          "// and stash the returned token. Subsequent requests reuse it via the",
-          "// collection-level Bearer auth ({{jwt_token}}).",
-          "if (!pm.environment.get('jwt_token')) {",
+          "// Auto-login: log in when there's no jwt_token, OR when the cached token",
+          "// belongs to a different user than test_username (i.e. you switched users",
+          "// in the env). Stores the token and the user it belongs to.",
+          "const wantUser = pm.environment.get('test_username');",
+          "const cachedFor = pm.environment.get('jwt_user');",
+          "const haveToken = pm.environment.get('jwt_token');",
+          "if (!haveToken || cachedFor !== wantUser) {",
           "    const baseUrl = pm.environment.get('base_url');",
           "    if (!baseUrl) {",
           "        console.warn('No base_url set in environment — skipping auto-login.');",
@@ -33,7 +36,7 @@
           "        body: {",
           "            mode: 'raw',",
           "            raw: JSON.stringify({",
-          "                username: pm.environment.get('test_username'),",
+          "                username: wantUser,",
           "                password: pm.environment.get('test_password')",
           "            })",
           "        }",
@@ -44,7 +47,8 @@
           "        const token = body && body.data && body.data.token;",
           "        if (token) {",
           "            pm.environment.set('jwt_token', token);",
-          "            console.log('jwt_token set via auto-login');",
+          "            pm.environment.set('jwt_user', wantUser);",
+          "            console.log('jwt_token refreshed for user:', wantUser);",
           "        } else {",
           "            console.warn('Login did not return data.token. Response:', body);",
           "        }",
@@ -105,6 +109,29 @@
         },
         {
           "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Persist the freshly-issued token so subsequent requests use",
+                  "// the new identity. Required when switching users in Postman.",
+                  "let body;",
+                  "try { body = pm.response.json(); } catch (_) { body = null; }",
+                  "const token = body && body.data && body.data.token;",
+                  "const user = body && body.data && body.data.user && body.data.user.username;",
+                  "if (token) {",
+                  "    pm.environment.set('jwt_token', token);",
+                  "    if (user) pm.environment.set('jwt_user', user);",
+                  "    console.log('jwt_token updated for user:', user);",
+                  "} else {",
+                  "    console.warn('Login response had no token. Body:', body);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
@@ -121,7 +148,7 @@
               "host": ["{{base_url}}"],
               "path": ["api", "auth", "login"]
             },
-            "description": "Login with username + password. Returns JWT under `data.token`. Public.\n\nThis is the same call the collection-level pre-request script runs automatically."
+            "description": "Login with username + password. Returns JWT under `data.token`. Public.\n\nThis is the same call the collection-level pre-request script runs automatically.\n\nThe test script writes the returned token into `{{jwt_token}}` and the username into `{{jwt_user}}`, so calling this with new credentials switches the active identity for every subsequent request."
           },
           "response": []
         },
